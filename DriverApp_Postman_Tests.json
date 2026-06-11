@@ -1,0 +1,317 @@
+{
+  "info": {
+    "_postman_id": "driver-app-test-suite",
+    "name": "Driver App - Full Test Suite",
+    "description": "Complete test suite for Dashboard, Route, PDF, and FMCSA Logs endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Generate Trip - Houston to Chicago",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"current_location\": \"Houston, Texas\",\n  \"pickup_location\": \"Dallas, Texas\",\n  \"dropoff_location\": \"Chicago, Illinois\",\n  \"driver_name\": \"Test Driver\",\n  \"vehicle_type\": \"Truck\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/generate-trip/",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "8000",
+          "path": ["api", "generate-trip", ""]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", function() {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has required fields\", function() {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json).to.have.property('route');",
+              "  pm.expect(json).to.have.property('fuel_stops');",
+              "  pm.expect(json).to.have.property('metadata');",
+              "  pm.expect(json).to.have.property('trip_summary');",
+              "});",
+              "",
+              "pm.test(\"Route has geometry array with 5+ points\", function() {",
+              "  const geometry = pm.response.json().route.geometry;",
+              "  pm.expect(geometry).to.be.an('array');",
+              "  pm.expect(geometry.length).to.be.greaterThan(5);",
+              "});",
+              "",
+              "pm.test(\"First coordinate is in Houston area [lat,lng]\", function() {",
+              "  const firstCoord = pm.response.json().route.geometry[0];",
+              "  pm.expect(firstCoord).to.be.an('array');",
+              "  pm.expect(firstCoord).to.have.length(2);",
+              "  const lat = firstCoord[0];",
+              "  const lng = firstCoord[1];",
+              "  pm.expect(lat).to.be.greaterThan(29);",
+              "  pm.expect(lat).to.be.lessThan(31);",
+              "  pm.expect(lng).to.be.lessThan(-95);",
+              "  pm.expect(lng).to.be.greaterThan(-99);",
+              "});",
+              "",
+              "pm.test(\"Waypoints are in [lat,lng] format\", function() {",
+              "  const waypoints = pm.response.json().route.waypoints;",
+              "  pm.expect(waypoints).to.be.an('array');",
+              "  waypoints.forEach(wp => {",
+              "    pm.expect(wp.coordinates).to.be.an('array');",
+              "    pm.expect(wp.coordinates).to.have.length(2);",
+              "    const lat = wp.coordinates[0];",
+              "    const lng = wp.coordinates[1];",
+              "    pm.expect(lat).to.be.greaterThan(-90);",
+              "    pm.expect(lat).to.be.lessThan(90);",
+              "    pm.expect(lng).to.be.greaterThan(-180);",
+              "    pm.expect(lng).to.be.lessThan(180);",
+              "  });",
+              "});",
+              "",
+              "pm.test(\"Trip summary has all required fields\", function() {",
+              "  const summary = pm.response.json().trip_summary;",
+              "  pm.expect(summary).to.have.property('total_miles');",
+              "  pm.expect(summary).to.have.property('total_drive_hours');",
+              "  pm.expect(summary).to.have.property('total_days');",
+              "  pm.expect(summary).to.have.property('num_fuel_stops');",
+              "  pm.expect(summary.total_miles).to.be.greaterThan(900);",
+              "  pm.expect(summary.total_drive_hours).to.be.greaterThan(14);",
+              "});",
+              "",
+              "pm.test(\"Fuel stops have valid coordinates\", function() {",
+              "  const stops = pm.response.json().fuel_stops;",
+              "  stops.forEach(stop => {",
+              "    pm.expect(stop).to.have.property('lat');",
+              "    pm.expect(stop).to.have.property('lng');",
+              "    pm.expect(stop.lat).to.be.a('number');",
+              "    pm.expect(stop.lng).to.be.a('number');",
+              "    pm.expect(isNaN(stop.lat)).to.be.false;",
+              "    pm.expect(isNaN(stop.lng)).to.be.false;",
+              "  });",
+              "});",
+              "",
+              "pm.test(\"Metadata has required fields\", function() {",
+              "  const meta = pm.response.json().metadata;",
+              "  pm.expect(meta).to.have.property('origin');",
+              "  pm.expect(meta).to.have.property('pickup');",
+              "  pm.expect(meta).to.have.property('destination');",
+              "  pm.expect(meta).to.have.property('driver_name');",
+              "  pm.expect(meta).to.have.property('date');",
+              "});",
+              "",
+              "// Save data for next test",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('trip_data', JSON.stringify(json));",
+              "if (json.route.geometry.length > 0) {",
+              "  pm.collectionVariables.set('route_start', json.route.geometry[0]);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Verify Route Visualization (Manual)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://127.0.0.1:5173/route",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "5173",
+          "path": ["route"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Frontend Route page accessible\", function() {",
+              "  pm.expect(pm.response.code).to.equal(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Check Dashboard (Manual)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://127.0.0.1:5173/",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "5173",
+          "path": [""]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Frontend Dashboard page accessible\", function() {",
+              "  pm.expect(pm.response.code).to.equal(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Test PDF Download Endpoint",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/download-pdf/trip_Houston%2C%20TX_to_Chicago%2C%20IL.pdf/",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "8000",
+          "path": ["api", "download-pdf", "trip_Houston%2C%20TX_to_Chicago%2C%20IL.pdf", ""]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"PDF endpoint returns 200 or 404\", function() {",
+              "  pm.expect([200, 404]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  pm.test(\"Content-Type is PDF\", function() {",
+              "    const contentType = pm.response.headers.get('Content-Type');",
+              "    pm.expect(contentType).to.include('application/pdf');",
+              "  });",
+              "  ",
+              "  pm.test(\"PDF has Content-Disposition header\", function() {",
+              "    const disposition = pm.response.headers.get('Content-Disposition');",
+              "    pm.expect(disposition).to.exist;",
+              "  });",
+              "} else {",
+              "  pm.console.log('PDF not yet generated - this is normal');\",",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Validate Coordinate Format in Route",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"current_location\": \"New York, New York\",\n  \"pickup_location\": \"Philadelphia, Pennsylvania\",\n  \"dropoff_location\": \"Boston, Massachusetts\",\n  \"driver_name\": \"Coordinate Test\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/generate-trip/",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "8000",
+          "path": ["api", "generate-trip", ""]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"All coordinates are [lat,lng] not [lng,lat]\", function() {",
+              "  const geometry = pm.response.json().route.geometry;",
+              "  geometry.forEach((coord, idx) => {",
+              "    const lat = coord[0];",
+              "    const lng = coord[1];",
+              "    pm.expect(lat, `Point ${idx} latitude`).to.be.greaterThan(40);",
+              "    pm.expect(lat, `Point ${idx} latitude`).to.be.lessThan(43);",
+              "    pm.expect(lng, `Point ${idx} longitude`).to.be.greaterThan(-76);",
+              "    pm.expect(lng, `Point ${idx} longitude`).to.be.lessThan(-70);",
+              "  });",
+              "});",
+              "",
+              "pm.test(\"No coordinates in Antarctica range\", function() {",
+              "  const geometry = pm.response.json().route.geometry;",
+              "  geometry.forEach(coord => {",
+              "    const lat = coord[0];",
+              "    const lng = coord[1];",
+              "    pm.expect(lat).to.be.greaterThan(-60);",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Test Fuel Stops Limit",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"current_location\": \"Los Angeles, California\",\n  \"pickup_location\": \"Denver, Colorado\",\n  \"dropoff_location\": \"Miami, Florida\",\n  \"driver_name\": \"Long Trip Test\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/generate-trip/",
+          "protocol": "http",
+          "host": ["127", "0", "0", "1"],
+          "port": "8000",
+          "path": ["api", "generate-trip", ""]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Fuel stops count is reasonable (1-5 max)\", function() {",
+              "  const stops = pm.response.json().fuel_stops;",
+              "  pm.expect(stops.length).to.be.lessThanOrEqual(5);",
+              "  pm.expect(stops.length).to.be.greaterThanOrEqual(1);",
+              "});",
+              "",
+              "pm.test(\"No excessive API calls - response time reasonable\", function() {",
+              "  const responseTime = pm.response.responseTime;",
+              "  pm.expect(responseTime).to.be.lessThan(15000);  // 15 seconds max",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "trip_data",
+      "value": ""
+    },
+    {
+      "key": "route_start",
+      "value": ""
+    }
+  ]
+}

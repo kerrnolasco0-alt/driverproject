@@ -1,0 +1,17 @@
+Django>=5.0
+
+djangorestframework
+
+django-cors-headers
+
+openrouteservice
+
+geopy
+
+python-dotenv
+
+reportlab
+
+Pillow
+
+numpy

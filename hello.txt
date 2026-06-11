@@ -1,0 +1,2 @@
+Heloo Git
+ cd d:\Project\Driver\backend .\venv\Scripts\python.exe manage.py runserver
